@@ -117,64 +117,88 @@ namespace SemVer
 			var sb    = new StringBuilder();
 			var error = false;
 			
-			var mode = 0;
+			var mode  = 0; // Current mode, 0 to 2 => expecting the version numbers MAJOR, MINOR and PATCH.
+			               //               3 to 4 => expecting PRE_RELEASE and BUILD_METADATA.
+			var index = 0;           // Current reading index in the specified string.
+			var chr   = (char?)null; // Current character being read, or null if end of string.
+			
+			// Contain the to-be parsed SemVer information.
 			var versions = new int[3];
 			var data     = new []{ new List<string>(), new List<string>() };
 			
-			var i = 0;
-			
-			void ThrowOrSetError(string message, params object[] args)
+			// Local helper method which will either set the error variable
+			// or throw a FormatException using local variables to fill out
+			// the error message. This helps with not allocating unnecessary
+			// objects when no exception is meant to be thrown.
+			void ThrowOrSetError(string message, bool nextMode = false)
 			{
-				if (throwException) throw new FormatException(
-					$"Error parsing version string '{ s }' at index { i }: "
-					+ string.Format(message, args.Select(element => {
-						// If a char? argument is passed, treat it in a special way.
-						if (element is char?) {
-							var chr = (char?)element;
-							return (chr != null) ? $"'{ chr }'" : "end of string";
-						} else return element;
-					}).ToArray()));
-				else error = true;
+				if (!throwException) error = true;
+				else throw new FormatException(
+					$"Error parsing version string '{ s }' at index { index }: " + string.Format(message,
+						PART_LOOKUP[nextMode ? mode + 1 : mode],
+						(chr != null) ? $"'{ chr }'" : "end of string"));
 			}
 			
-			for (; i <= s.Length; i++) {
-				var chr = (i < s.Length) ? s[i] : (char?)null;
+			for (; index <= s.Length; index++) {
+				chr = (index < s.Length) ? s[index] : (char?)null;
+				
+				// If expecting a MAJOR, MINOR or PATCH version number, ..
 				if (mode <= 2) {
+					// On digit, write it to the StringBuilder.
 					if ((chr >= '0') && (chr <= '9')) {
 						sb.Append(chr);
 						if ((sb.Length == 2) && (sb[0] == '0'))
-							ThrowOrSetError("{0} version contains leading zero", PART_LOOKUP[mode]);
+							ThrowOrSetError("{0} version contains leading zero");
 					} else {
-						if (sb.Length == 0)
-							ThrowOrSetError("Expected {0} version, found {1}", PART_LOOKUP[mode], chr);
+						if (sb.Length == 0) // Error if nothing was written to the StringBuilder.
+							ThrowOrSetError("Expected {0} version number, found {1}");
 						else versions[mode] = int.Parse(sb.ToString());
 						sb.Clear();
 						
-						if (chr == '.') mode++;
-						else {
-							if (mode != 2)
-								ThrowOrSetError("Expected dot and {0} version, found {1}", PART_LOOKUP[mode + 1], chr);
-							if (chr == '-') mode = 3;
-							else if (chr == '+') mode = 4;
-							else if (chr != null) { mode = 3; i--; }
+						// If the non-digit encountered is a dot, ..
+						if (chr == '.') {
+							if (mode == 2) // Error if we're already at PATCH number.
+								ThrowOrSetError("Expected PRE_RELEASE or BUILD_METADATA, found {1}");
+							mode++; // Move to the next version number or to PRE_RELEASE.
+						} else {
+							if (mode != 2) // Error if we're not currently at the PATCH number.
+								ThrowOrSetError("Expected {0} version, found {1}", true);
+							
+							if (chr == '-') mode = 3;      // If encountering a hyphen, move to PRE_RELEASE.
+							else if (chr == '+') mode = 4; // If encountering a plus, move to BUILD_METADATA.
+							else if (chr != null) {
+								// Otherwise we found an unexpected character.
+								ThrowOrSetError("Expected PRE_RELEASE or BUILD_METADATA, found {1}");
+								mode = 3; // Move to PRE_RELEASE.
+								index--;  // Treat character as part of PRE_RELEASE.
+								          // Allows parsing "1.0.0pre2" as "1.0.0-pre2".
+							}
 						}
 					}
-				} else if (mode <= 4) {
-					if (chr.HasValue && IsValidIdentifierChar((char)chr)) sb.Append(chr);
-					else if (!((chr == '+') && (mode == 3)) && (chr != '.') && (chr != null))
-						ThrowOrSetError("Unexpected character {0} in {1} identifier", chr, PART_LOOKUP[mode]);
+				// Otherwise, we're expecting PRE_RELEASE or BUILD_METADATA.
+				} else {
+					// On valid identifier character, write it to the StringBuilder.
+					if (chr.HasValue && IsValidIdentifierChar((char)chr))
+						sb.Append(chr);
+					// Error if encountering unexpected character.
+					else if ((chr != '.') && (chr != null) && // chr is not a dot, the end of the string
+					         !((chr == '+') && (mode == 3)))  // or a plus outside of BUILD_METADATA.
+						ThrowOrSetError("Unexpected character {1} in {0} identifier");
 					else {
-						if (sb.Length == 0)
-							ThrowOrSetError("Expected {0} identifier, found {1}", PART_LOOKUP[mode], chr);
+						if (sb.Length == 0) // Error if nothing was written to the StringBuilder.
+							ThrowOrSetError("Expected {0} identifier, found {1}");
 						else {
 							var ident = sb.ToString();
+							// Error in PRE_RELEASE if identifier is numeric
+							// (just digits) and contains leading zero(es).
 							if ((mode == 3) && IsNumericIdent(ident) && (ident[0] == '0') && (ident.Length > 1)) {
-								ThrowOrSetError("{ 0 } numeric identifier contains leading zero", PART_LOOKUP[mode]);
+								ThrowOrSetError("{0} numeric identifier contains leading zero");
 								ident = ident.TrimStart('0');
 							}
 							data[mode - 3].Add(ident);
 						}
 						sb.Clear();
+						// On plus, if currently in PRE_RELEASE, move to BUILD_METADATA.
 						if ((chr == '+') && (mode == 3)) mode++;
 					}
 				}

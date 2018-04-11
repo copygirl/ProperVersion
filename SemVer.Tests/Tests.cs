@@ -47,7 +47,9 @@ namespace SemVer.Tests
 		[InlineData("1.2.3-4.5.6+7.8.9")]
 		[InlineData("1.0.0-rc-5.1")]
 		[InlineData("1.0.0+001de7b")]
-		[InlineData("1.0.0--.-.-b+-p.99-4")]
+		// As I understand from reading the specification, hyphens can't just be part
+		// of identifiers, but there's also nothing disallowing this from being valid.
+		[InlineData("1.0.0--.-.-b+-p.99-4--")]
 		public void Parse_ToString(string str)
 		{
 			Assert.Equal(str, SemVer.Parse(str).ToString());
@@ -57,6 +59,9 @@ namespace SemVer.Tests
 		[InlineData("", "0.0.0")]
 		[InlineData(" 10", "0.0.0-10")]
 		[InlineData("14", "14.0.0")]
+		[InlineData("1.2.3.4.5-6", "1.2.3-4.5-6")]
+		[InlineData("1.2.3-+4", "1.2.3+4")]
+		[InlineData("14.6.2pre3", "14.6.2-pre3")]
 		[InlineData("14.6beta9", "14.6.0-beta9")]
 		[InlineData("bloob", "0.0.0-bloob")]
 		[InlineData("-+x", "0.0.0+x")]
