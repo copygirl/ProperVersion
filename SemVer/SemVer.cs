@@ -147,12 +147,12 @@ namespace SemVer
 			var versions = new int[3];
 			var data     = new []{ new List<string>(), new List<string>() };
 			
-			// Local helper method which will either set the error variable
-			// or throw a FormatException using local variables to fill out
-			// the error message. This helps with not allocating unnecessary
-			// objects when no exception is meant to be thrown.
-			void ThrowOrSetError(string message, bool nextMode = false)
+			// Local helper method which will either set error variable or throw
+			// a FormatException, using local variables to fill out the message.
+			// This helps with not allocating unnecessary objects unless needed.
+			void Error(string message, bool nextMode = false)
 			{
+				// Don't do anything if we already encountered an error before.
 				if (error != null) return;
 				error = $"Error parsing version string '{ s }' at index { index }: " + string.Format(message,
 					PART_LOOKUP[nextMode ? mode + 1 : mode],
@@ -169,27 +169,27 @@ namespace SemVer
 					if ((chr >= '0') && (chr <= '9')) {
 						sb.Append(chr);
 						if ((sb.Length == 2) && (sb[0] == '0'))
-							ThrowOrSetError("{0} version contains leading zero");
+							Error("{0} version contains leading zero");
 					} else {
 						if (sb.Length == 0) // Error if nothing was written to the StringBuilder.
-							ThrowOrSetError("Expected {0} version number, found {1}");
+							Error("Expected {0} version number, found {1}");
 						else versions[mode] = int.Parse(sb.ToString());
 						sb.Clear();
 						
 						// If the non-digit encountered is a dot, ..
 						if (chr == '.') {
 							if (mode == 2) // Error if we're already at PATCH number.
-								ThrowOrSetError("Expected PRE_RELEASE or BUILD_METADATA, found {1}");
+								Error("Expected PRE_RELEASE or BUILD_METADATA, found {1}");
 							mode++; // Move to the next version number or to PRE_RELEASE.
 						} else {
 							if (mode != 2) // Error if we're not currently at the PATCH number.
-								ThrowOrSetError("Expected {0} version, found {1}", true);
+								Error("Expected {0} version, found {1}", true);
 							
 							if (chr == '-') mode = 3;      // If encountering a hyphen, move to PRE_RELEASE.
 							else if (chr == '+') mode = 4; // If encountering a plus, move to BUILD_METADATA.
 							else if (chr != null) {
 								// Otherwise we found an unexpected character.
-								ThrowOrSetError("Expected PRE_RELEASE or BUILD_METADATA, found {1}");
+								Error("Expected PRE_RELEASE or BUILD_METADATA, found {1}");
 								mode = 3; // Move to PRE_RELEASE.
 								index--;  // Treat character as part of PRE_RELEASE.
 								          // Allows parsing "1.0.0pre2" as "1.0.0-pre2".
@@ -203,17 +203,17 @@ namespace SemVer
 						sb.Append(chr);
 					// Error if encountering unexpected character.
 					else if ((chr != '.') && (chr != null) && // chr is not a dot, the end of the string
-					         !((chr == '+') && (mode == 3)))  // or a plus outside of BUILD_METADATA.
-						ThrowOrSetError("Unexpected character {1} in {0} identifier");
+					         !((chr == '+') && (mode == 3)))  // or a plus outside of PRE_RELEASE.
+						Error("Unexpected character {1} in {0} identifier");
 					else {
 						if (sb.Length == 0) // Error if nothing was written to the StringBuilder.
-							ThrowOrSetError("Expected {0} identifier, found {1}");
+							Error("Expected {0} identifier, found {1}");
 						else {
 							var ident = sb.ToString();
 							// Error in PRE_RELEASE if identifier is numeric
 							// (just digits) and contains leading zero(es).
 							if ((mode == 3) && IsNumericIdent(ident) && (ident[0] == '0') && (ident.Length > 1)) {
-								ThrowOrSetError("{0} numeric identifier contains leading zero");
+								Error("{0} numeric identifier contains leading zero");
 								ident = ident.TrimStart('0');
 							}
 							data[mode - 3].Add(ident);
