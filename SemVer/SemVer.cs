@@ -224,9 +224,9 @@ namespace SemVer
 			=> Compare(this, other);
 		public static int Compare(SemVer left, SemVer right)
 		{
-			if (left == right) return 0;
-			if (left == null) return -1;
-			if (right == null) return 1;
+			if (ReferenceEquals(left, right)) return 0;
+			if (ReferenceEquals(left, null)) return -1;
+			if (ReferenceEquals(right, null)) return 1;
 			
 			var majorDiff = left.Major.CompareTo(right.Major);
 			if (majorDiff != 0) return majorDiff;
