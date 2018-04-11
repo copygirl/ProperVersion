@@ -1,10 +1,36 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace ProperVersion.Tests
 {
 	public class Tests
 	{
+		public SemVer[] Versions { get; } = new []{
+			(SemVer)null,
+			new SemVer(0, 0, 0, "20", "hello"),
+			new SemVer(0, 0, 0, "109"),
+			new SemVer(0, 0, 0, "alpha"),
+			new SemVer(0, 0, 0, "beta-109"), // The identifier "beta-109" is lexically compared
+			new SemVer(0, 0, 0, "beta-20"),  // to "beta-20", so while 109 > 20, "109" < "20".
+			new SemVer(0, 0, 0, "epsilon.20"),  // This is different, as the dot separates
+			new SemVer(0, 0, 0, "epsilon.109"), // the two numeric (digit only) identifiers.
+			new SemVer(0, 0, 0, "epsilon.109.foo"),
+			new SemVer(0, 0, 0, "epsilon-2"),
+			new SemVer(0, 0, 0, "rc2"),
+			new SemVer(0, 0, 0, "rc2.1"),
+			new SemVer(0, 0, 0),
+			new SemVer(0, 1, 0, "pre.1"),
+			new SemVer(0, 1, 0, "", "078df1a"),
+			new SemVer(0, 2, 4),
+			new SemVer(0, 2, 5),
+			new SemVer(1, 5, 8, "beta.1"),
+			new SemVer(1, 5, 8),
+			new SemVer(2, 209, 50),
+			new SemVer(10, 90, 5),
+		};
+		
 		[Fact]
 		public void Constructor_Exceptions()
 		{
@@ -88,6 +114,33 @@ namespace ProperVersion.Tests
 			Assert.False(success);
 			Assert.Equal(expectedGuess, version.ToString());
 			Assert.Equal($"Error parsing version string '{ str }' at index { expectedIndex }: { expectedError }", error);
+		}
+		
+		[Fact]
+		public void Compare_And_CompareTo()
+		{
+			for (var i = 0; i < Versions.Length - 1; i++) {
+				var a = Versions[i];
+				
+				Assert.Equal(a, a);
+				if (a != null) Assert.Equal(a, SemVer.Parse(a.ToString()));
+				
+				Assert.False(a < null);
+				Assert.False(a > null);
+				Assert.False(a <= null);
+				Assert.False(a >= null);
+				
+				for (var j = i + 1; j < Versions.Length; j++) {
+					var b = Versions[j];
+					
+					Assert.NotEqual(a, b);
+					
+					Assert.True(SemVer.Compare(a, b) < 0, $"{ a } is not smaller than { b }");
+					if (a != null) Assert.True(a.CompareTo(b) < 0);
+				}
+			}
+			
+			Assert.Equal(Versions, Versions.OrderBy(x => x, Comparer<SemVer>.Default));
 		}
 	}
 }
