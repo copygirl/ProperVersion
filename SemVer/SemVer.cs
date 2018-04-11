@@ -101,21 +101,42 @@ namespace SemVer
 		///   Tries to convert the specified string representation of a
 		///   semantic version to its <see cref="SemVer"/> equivalent,
 		///   returning true if successful.
-		///   
-		///   Regardless of success, the result parameter will contain
-		///   a valid, non-null SemVer with the method's best guess.
 		/// </summary>
+		/// <param name="result">
+		///   When this method returns, contains a valid, non-null SemVer,
+		///   If the conversion failed, this is set to the parser's best guess.
+		/// </param>
 		/// <exception cref="ArgumentNullException"> Thrown if the specified string is null. </exception>
 		public static bool TryParse(string s, out SemVer result)
-			=> TryParse(s, out result, false);
+			=> TryParse(s, out result, out var _);
+		
+		/// <summary>
+		///   Tries to convert the specified string representation of a
+		///   semantic version to its <see cref="SemVer"/> equivalent,
+		///   returning true if successful.
+		/// </summary>
+		/// <param name="result">
+		///   When this method returns, contains a valid, non-null SemVer,
+		///   If the conversion failed, this is set to the method's best guess.
+		/// </param>
+		/// <param name="error">
+		///   When this method returns, contains the first error describing
+		///   why the conversion failed, or null if it succeeded.
+		/// </param>
+		/// <exception cref="ArgumentNullException"> Thrown if the specified string is null. </exception>
+		public static bool TryParse(string s, out SemVer result, out string error)
+		{
+			error = TryParse(s, out result, false);
+			return (error == null);
+		}
 		
 		private static readonly string[] PART_LOOKUP = {
 			"MAJOR", "MINOR", "PATCH", "PRE_RELEASE", "BUILD_METADATA" };
-		private static bool TryParse(string s, out SemVer result, bool throwException)
+		private static string TryParse(string s, out SemVer result, bool throwException)
 		{
 			if (s == null) throw new ArgumentNullException(nameof(s));
 			var sb    = new StringBuilder();
-			var error = false;
+			var error = (string)null;
 			
 			var mode  = 0; // Current mode, 0 to 2 => expecting the version numbers MAJOR, MINOR and PATCH.
 			               //               3 to 4 => expecting PRE_RELEASE and BUILD_METADATA.
@@ -132,11 +153,11 @@ namespace SemVer
 			// objects when no exception is meant to be thrown.
 			void ThrowOrSetError(string message, bool nextMode = false)
 			{
-				if (!throwException) error = true;
-				else throw new FormatException(
-					$"Error parsing version string '{ s }' at index { index }: " + string.Format(message,
-						PART_LOOKUP[nextMode ? mode + 1 : mode],
-						(chr != null) ? $"'{ chr }'" : "end of string"));
+				if (error != null) return;
+				error = $"Error parsing version string '{ s }' at index { index }: " + string.Format(message,
+					PART_LOOKUP[nextMode ? mode + 1 : mode],
+					(chr != null) ? $"'{ chr }'" : "end of string");
+				if (throwException) throw new FormatException(error);
 			}
 			
 			for (; index <= s.Length; index++) {
@@ -206,7 +227,7 @@ namespace SemVer
 			
 			result = new SemVer(versions[0], versions[1], versions[2],
 			                    data[0].ToArray(), data[1].ToArray());
-			return !error;
+			return error;
 		}
 		
 		

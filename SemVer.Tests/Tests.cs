@@ -55,24 +55,39 @@ namespace SemVer.Tests
 			Assert.Equal(str, SemVer.Parse(str).ToString());
 		}
 		
-		[Theory]
-		[InlineData("", "0.0.0")]
-		[InlineData(" 10", "0.0.0-10")]
-		[InlineData("14", "14.0.0")]
-		[InlineData("1.2.3.4.5-6", "1.2.3-4.5-6")]
-		[InlineData("1.2.3-+4", "1.2.3+4")]
-		[InlineData("14.6.2pre3", "14.6.2-pre3")]
-		[InlineData("14.6beta9", "14.6.0-beta9")]
-		[InlineData("bloob", "0.0.0-bloob")]
-		[InlineData("-+x", "0.0.0+x")]
-		[InlineData("10+ab+CC", "10.0.0+abCC")]
-		[InlineData("Hello There. I'm new!", "0.0.0-HelloThere.Imnew")]
-		[InlineData("004.02.8--beta008...-..007+00010", "4.2.8--beta008.-.7+00010")]
-		public void TryParse_ToString_BestGuess(string str, string guess)
+		[Fact]
+		public void Parse_Methods_ThrowOnNull()
 		{
-			var success = SemVer.TryParse(str, out var version);
+			Assert.Throws<ArgumentNullException>(() => SemVer.Parse(null));
+			Assert.Throws<ArgumentNullException>(() => SemVer.Parse(null));
+			Assert.Throws<ArgumentNullException>(() => SemVer.Parse(null));
+		}
+		
+		[Theory]
+		[InlineData("",            "0.0.0",        0, "Expected MAJOR version number, found end of string")]
+		[InlineData(" 10",         "0.0.0-10",     0, "Expected MAJOR version number, found ' '")]
+		[InlineData("14",          "14.0.0",       2, "Expected MINOR version, found end of string")]
+		[InlineData("1.2.3.4.5-6", "1.2.3-4.5-6",  5, "Expected PRE_RELEASE or BUILD_METADATA, found '.'")]
+		[InlineData("1.2.3-+4",    "1.2.3+4",      6, "Expected PRE_RELEASE identifier, found '+'")]
+		[InlineData("14.6.2pre3",  "14.6.2-pre3",  6, "Expected PRE_RELEASE or BUILD_METADATA, found 'p'")]
+		[InlineData("14.6beta9",   "14.6.0-beta9", 4, "Expected PATCH version, found 'b'")]
+		[InlineData("bloob",       "0.0.0-bloob",  0, "Expected MAJOR version number, found 'b'")]
+		[InlineData("-+x",         "0.0.0+x",      0, "Expected MAJOR version number, found '-'")]
+		[InlineData("10+ab+CC",    "10.0.0+abCC",  2, "Expected MINOR version, found '+'")]
+		[InlineData("Hello There. I'm new!",
+		            "0.0.0-HelloThere.Imnew",
+		            0, "Expected MAJOR version number, found 'H'")]
+		[InlineData("004.02.8--beta008...-..007+00010",
+		            "4.2.8--beta008.-.7+00010",
+		            1, "MAJOR version contains leading zero")]
+		public void Parse_Invalid_With_Best_Guess(string str, string expectedGuess,
+		                                          int expectedIndex, string expectedError)
+		{
+			Assert.Throws<FormatException>(() => SemVer.Parse(str));
+			var success = SemVer.TryParse(str, out var version, out var error);
 			Assert.False(success);
-			Assert.Equal(guess, version.ToString());
+			Assert.Equal(expectedGuess, version.ToString());
+			Assert.Equal($"Error parsing version string '{ str }' at index { expectedIndex }: { expectedError }", error);
 		}
 	}
 }
