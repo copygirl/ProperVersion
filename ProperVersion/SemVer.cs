@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace ProperVersion
@@ -280,6 +279,13 @@ namespace ProperVersion
 			var patchDiff = left.Patch.CompareTo(right.Patch);
 			if (patchDiff != 0) return patchDiff;
 			
+			// If left has PreRelease and right doesn't, or the other way around,
+			// order them by the existance of PreRelease (1.0.0-rc2 < 1.0.0).
+			var leftHasPreRelease  = (left.PreReleaseIdentifiers.Length > 0);
+			var rightHasPreRelease = (right.PreReleaseIdentifiers.Length > 0);
+			if (leftHasPreRelease != rightHasPreRelease)
+				return leftHasPreRelease ? -1 : 1;
+			
 			var minCount = Math.Min(left.PreReleaseIdentifiers.Length,
 			                        right.PreReleaseIdentifiers.Length);
 			for (var i = 0; i < minCount; i++) {
@@ -291,7 +297,7 @@ namespace ProperVersion
 				// If the ident type is different (one is numeric, the other isn't), sort by
 				// which one is the numeric one. Numeric identifiers have lower precedence.
 				if (leftIdentIsNumeric != rightIdentIsNumeric)
-					return (leftIdentIsNumeric) ? -1 : 1;
+					return leftIdentIsNumeric ? -1 : 1;
 				
 				var identDiff = (leftIdentIsNumeric)
 					// If they're numeric, compare them as numbers.
@@ -318,8 +324,8 @@ namespace ProperVersion
 			=> Equals(obj as SemVer);
 		
 		public override int GetHashCode()
-			=> (Major << 24) ^ (Minor << 16) ^ (Patch << 8) ^
-			   (PreRelease.GetHashCode() << 4) ^ BuildMetadata.GetHashCode();
+			=> Major ^ (Minor << 8) ^ (Patch << 16) ^
+			   PreRelease.GetHashCode() ^ (BuildMetadata.GetHashCode() << 6);
 		
 		
 		// Various private helper methods...
