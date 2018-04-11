@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace SemVer
+namespace ProperVersion
 {
 	/// <summary>
 	///   Implementation of Semantic Verisoning standard, version 2.0.0.

@@ -1,7 +1,7 @@
 using System;
 using Xunit;
 
-namespace SemVer.Tests
+namespace ProperVersion.Tests
 {
 	public class Tests
 	{
