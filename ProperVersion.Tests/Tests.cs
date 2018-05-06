@@ -85,8 +85,8 @@ namespace ProperVersion.Tests
 		public void Parse_Methods_ThrowOnNull()
 		{
 			Assert.Throws<ArgumentNullException>(() => SemVer.Parse(null));
-			Assert.Throws<ArgumentNullException>(() => SemVer.Parse(null));
-			Assert.Throws<ArgumentNullException>(() => SemVer.Parse(null));
+			Assert.Throws<ArgumentNullException>(() => SemVer.TryParse(null, out var v));
+			Assert.Throws<ArgumentNullException>(() => SemVer.TryParse(null, out var v, out var e));
 		}
 		
 		[Theory]
